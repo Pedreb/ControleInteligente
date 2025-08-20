@@ -1,0 +1,23 @@
+# Streamlit - Framework web para aplicações de dados
+streamlit==1.28.1
+
+# Pandas - Manipulação e análise de dados
+pandas==2.1.3
+
+# Plotly - Gráficos interativos
+plotly==5.17.0
+
+# Requests - Requisições HTTP
+requests==2.31.0
+
+# MSAL - Microsoft Authentication Library
+msal==1.24.1
+
+# OpenPyXL - Leitura e escrita de arquivos Excel
+openpyxl==3.1.2
+
+# NumPy - Computação numérica
+numpy==1.25.2
+
+# IO - Manipulação de streams (já incluído no Python)
+# datetime - Manipulação de datas (já incluído no Python)
