@@ -956,9 +956,9 @@ def main():
                     'Data': '📅 DATA',
                     'Nome': '👤 COLABORADOR',
                     'Entrada': '🕘 ENTRADA',
-                    'Saída': '🕕 SAÍDA',
                     'Saída Almoço': '🍽️ SAÍDA ALMOÇO',
                     'Volta Almoço': '🍽️ VOLTA ALMOÇO',
+                    'Saída': '🕕 SAÍDA',
                     'STATUS': '🚦 STATUS',
                     'DURAÇÃO': '⏱️ DURAÇÃO'
                 }
