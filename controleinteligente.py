@@ -297,15 +297,28 @@ def process_controle_data(df):
     df_processed['Data'] = df_processed['Data e hora'].dt.date
     df_processed['Hora'] = df_processed['Data e hora'].dt.time
 
+    # NOVA PARTE: Incluir Regional se existir
+    keep_columns = ['Data', 'Nome', 'Tipo', 'Hora']
+    if 'Regional' in df_processed.columns:
+        keep_columns.append('Regional')
+
     # Filtrar dados válidos
-    df_clean = df_processed[['Data', 'Nome', 'Tipo', 'Hora']].dropna()
+    df_clean = df_processed[keep_columns].dropna()
 
-    # Agrupar e pegar primeiro horário
-    df_grouped = df_clean.groupby(['Data', 'Nome', 'Tipo']).first().reset_index()
+    # NOVA PARTE: Agrupar incluindo Regional se existir
+    group_columns = ['Data', 'Nome', 'Tipo']
+    if 'Regional' in df_clean.columns:
+        group_columns.append('Regional')
 
-    # Fazer pivot
+    df_grouped = df_clean.groupby(group_columns).first().reset_index()
+
+    # NOVA PARTE: Fazer pivot incluindo Regional se existir
+    index_columns = ['Data', 'Nome']
+    if 'Regional' in df_grouped.columns:
+        index_columns.append('Regional')
+
     df_pivot = df_grouped.pivot_table(
-        index=['Data', 'Nome'],
+        index=index_columns,
         columns='Tipo',
         values='Hora',
         aggfunc='first'
@@ -838,6 +851,13 @@ def main():
             max_value=today
         )
 
+        # NOVO: Filtro de Regional
+        st.markdown("""
+        <div class="sidebar-content">
+            <div class="sidebar-title">🏢 Filtro de Regional</div>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col_main:
         # Verificar qual página foi selecionada
         if pagina == "Relatórios":
@@ -853,6 +873,18 @@ def main():
                         (df_processed['Data'] >= data_inicio) &
                         (df_processed['Data'] <= data_fim)
                         ]
+
+                    # NOVO: Aplicar filtro de regional se existir a coluna
+                    with col_sidebar:
+                        if 'Regional' in df_processed.columns:
+                            regionais = ['Todas'] + sorted(df_processed['Regional'].dropna().unique().tolist())
+                            regional_selecionada = st.selectbox("Filtrar por Regional:", regionais)
+
+                            if regional_selecionada != 'Todas':
+                                df_filtered = df_filtered[df_filtered['Regional'] == regional_selecionada]
+                        else:
+                            st.info("Coluna 'Regional' não encontrada nos dados")
+
                     show_reports_page(df_filtered)
                 else:
                     st.error("❌ Erro no processamento dos dados")
@@ -873,6 +905,17 @@ def main():
                     (df_processed['Data'] >= data_inicio) &
                     (df_processed['Data'] <= data_fim)
                     ]
+
+                # NOVO: Aplicar filtro de regional
+                with col_sidebar:
+                    if 'Regional' in df_processed.columns:
+                        regionais = ['Todas'] + sorted(df_processed['Regional'].dropna().unique().tolist())
+                        regional_selecionada = st.selectbox("Filtrar por Regional:", regionais)
+
+                        if regional_selecionada != 'Todas':
+                            df_filtered = df_filtered[df_filtered['Regional'] == regional_selecionada]
+                    else:
+                        st.info("Coluna 'Regional' não encontrada nos dados")
 
                 # Métricas principais em cards
                 st.markdown('<div class="main-container">', unsafe_allow_html=True)
@@ -943,7 +986,8 @@ def main():
                         lambda x: calculate_work_duration(x.get('Entrada'), x.get('Saída')), axis=1)
 
                 # Formatear colunas de tempo
-                time_columns = [col for col in display_df.columns if col not in ['Data', 'Nome', 'STATUS', 'DURAÇÃO']]
+                time_columns = [col for col in display_df.columns if
+                                col not in ['Data', 'Nome', 'Regional', 'STATUS', 'DURAÇÃO']]
                 for col in time_columns:
                     if col in display_df.columns:
                         display_df[col] = display_df[col].apply(format_time_column)
@@ -951,10 +995,11 @@ def main():
                 # Ordenar por data (mais recente primeiro) e nome
                 display_df = display_df.sort_values(['Data', 'Nome'], ascending=[False, True])
 
-                # Renomear colunas para português
+                # NOVO: Renomear colunas para português incluindo Regional
                 column_names = {
                     'Data': '📅 DATA',
                     'Nome': '👤 COLABORADOR',
+                    'Regional': '🏢 REGIONAL',
                     'Entrada': '🕘 ENTRADA',
                     'Saída Almoço': '🍽️ SAÍDA ALMOÇO',
                     'Volta Almoço': '🍽️ VOLTA ALMOÇO',
@@ -963,8 +1008,10 @@ def main():
                     'DURAÇÃO': '⏱️ DURAÇÃO'
                 }
 
-                # Selecionar e renomear colunas existentes
-                available_columns = [col for col in column_names.keys() if col in display_df.columns]
+                # NOVO: Definir ordem das colunas incluindo Regional
+                desired_order = ['Data', 'Nome', 'Regional', 'Entrada', 'Saída Almoço', 'Volta Almoço', 'Saída',
+                                 'STATUS', 'DURAÇÃO']
+                available_columns = [col for col in desired_order if col in display_df.columns]
                 display_df_final = display_df[available_columns].rename(columns=column_names)
 
                 # Converter data para string formatada
@@ -1015,9 +1062,10 @@ def main():
             # Dados de exemplo se não conseguir conectar
             st.warning("⚠️ Não foi possível conectar ao SharePoint. Carregando dados de exemplo...")
 
-            # Criar dados de exemplo
+            # NOVO: Criar dados de exemplo COM Regional
             dates = pd.date_range(start=data_inicio, end=data_fim, freq='D')
             names = ['RAYLON HENRIQUE', 'GENESIS WESLEY', 'SERGIO DE SOUZA', 'EDNALDO LIMA', 'ROGÉRIO RIKER']
+            regionais = ['Norte', 'Sul', 'Leste', 'Oeste', 'Centro']
 
             example_data = []
             for i, date in enumerate(dates):
@@ -1026,6 +1074,7 @@ def main():
                         example_data.append({
                             'Data': date.date(),
                             'Nome': name,
+                            'Regional': regionais[j % len(regionais)],  # Distribuir regionais
                             'Entrada': dt_time(8, np.random.randint(0, 30)),
                             'Saída': dt_time(17, np.random.randint(0, 30)),
                             'Saída Almoço': dt_time(12, 0),
@@ -1033,6 +1082,14 @@ def main():
                         })
 
             df_example = pd.DataFrame(example_data)
+
+            # NOVO: Filtro de regional para dados de exemplo
+            with col_sidebar:
+                regionais_exemplo = ['Todas'] + sorted(df_example['Regional'].unique().tolist())
+                regional_selecionada = st.selectbox("Filtrar por Regional:", regionais_exemplo)
+
+                if regional_selecionada != 'Todas':
+                    df_example = df_example[df_example['Regional'] == regional_selecionada]
 
             if not df_example.empty:
                 # Mostrar dados de exemplo com o mesmo layout
@@ -1049,9 +1106,11 @@ def main():
                 for col in ['Entrada', 'Saída', 'Saída Almoço', 'Volta Almoço']:
                     df_example[col] = df_example[col].apply(format_time_column)
 
+                # NOVO: Incluir Regional nos dados de exemplo
                 column_names = {
                     'Data': '📅 DATA',
                     'Nome': '👤 COLABORADOR',
+                    'Regional': '🏢 REGIONAL',
                     'Entrada': '🕘 ENTRADA',
                     'Saída': '🕕 SAÍDA',
                     'Saída Almoço': '🍽️ SAÍDA ALMOÇO',
@@ -1060,7 +1119,12 @@ def main():
                     'DURAÇÃO': '⏱️ DURAÇÃO'
                 }
 
-                df_display = df_example.rename(columns=column_names)
+                # Definir ordem das colunas para dados de exemplo
+                desired_order = ['Data', 'Nome', 'Regional', 'Entrada', 'Saída Almoço', 'Volta Almoço', 'Saída',
+                                 'STATUS', 'DURAÇÃO']
+                available_columns = [col for col in desired_order if col in df_example.columns]
+
+                df_display = df_example[available_columns].rename(columns=column_names)
                 df_display['📅 DATA'] = df_display['📅 DATA'].apply(lambda x: x.strftime('%d/%m/%Y'))
 
                 st.markdown(
